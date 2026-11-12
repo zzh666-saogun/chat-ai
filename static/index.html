@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Chat</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    #log { border: 1px solid #ddd; border-radius: 8px; padding: 16px; min-height: 200px; margin-bottom: 12px; white-space: pre-wrap; line-height: 1.7; }
+    .row { display: flex; gap: 8px; }
+    input { flex: 1; padding: 10px; font-size: 16px; }
+    button { padding: 10px 18px; font-size: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>AI Chat</h1>
+  <div id="log"></div>
+  <div class="row">
+    <input id="q" placeholder="输入问题，回车发送" />
+    <button onclick="send()">发送</button>
+  </div>
+
+  <script>
+    const log = document.getElementById('log');
+    const q = document.getElementById('q');
+
+    q.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') send();
+    });
+
+    async function send() {
+      const text = q.value.trim();
+      if (!text) return;
+      q.value = '';
+      log.textContent += `\n你：${text}\nAI：`;
+
+      const resp = await fetch('/chat/stream', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: text, session_id: 'default'})
+      });
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, {stream: true});
+        const parts = buf.split('\n\n');
+        buf = parts.pop();
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue;
+          const data = part.slice(6);
+          if (data === '[DONE]') continue;
+          try {
+            const obj = JSON.parse(data);
+            log.textContent += obj.delta;
+          } catch (e) {}
+        }
+      }
+      log.textContent += '\n';
+    }
+  </script>
+</body>
+</html>
