@@ -21,6 +21,8 @@
   </div>
 
   <script>
+    const accessCode = sessionStorage.getItem('accessCode') || prompt('请输入访问密码') || '';
+    sessionStorage.setItem('accessCode', accessCode);
     const log = document.getElementById('log');
     const q = document.getElementById('q');
 
@@ -36,7 +38,7 @@
 
       const resp = await fetch('/chat/stream', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json','X-Access-Code': accessCode},
         body: JSON.stringify({message: text, session_id: 'default'})
       });
 
