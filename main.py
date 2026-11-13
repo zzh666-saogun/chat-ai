@@ -1,17 +1,19 @@
 import os
 import json
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse, FileResponse
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from openai import OpenAI
 from dotenv import load_dotenv
-from fastapi import Depends, HTTPException, Request
-from security import verify_access, rate_limit
+
+from security import rate_limit, verify_access
 
 load_dotenv()
 
 app = FastAPI(title="AI Chat")
+
 client = OpenAI(
     api_key=os.getenv("DEEPSEEK_API_KEY"),
     base_url="https://api.deepseek.com",
@@ -28,6 +30,11 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/debug/access")
+def debug_access():
+    return {"has_access_code": bool(os.getenv("ACCESS_CODE", "").strip())}
+
+
 @app.post("/chat")
 def chat(req: ChatRequest, request: Request, _=Depends(verify_access)):
     rate_limit(request)
@@ -37,7 +44,10 @@ def chat(req: ChatRequest, request: Request, _=Depends(verify_access)):
 
     resp = client.chat.completions.create(
         model="deepseek-chat",
-        messages=[{"role": "user", "content": req.message}],
+        messages=[
+            {"role": "system", "content": "你是一个简洁的中文助手。"},
+            {"role": "user", "content": req.message},
+        ],
         timeout=30,
         max_tokens=512,
     )
@@ -54,15 +64,21 @@ def chat_stream(req: ChatRequest, request: Request, _=Depends(verify_access)):
     def gen():
         stream = client.chat.completions.create(
             model="deepseek-chat",
-            messages=[{"role": "user", "content": req.message}],
+            messages=[
+                {"role": "system", "content": "你是一个简洁的中文助手。"},
+                {"role": "user", "content": req.message},
+            ],
             stream=True,
             timeout=30,
             max_tokens=512,
         )
+
         for chunk in stream:
             delta = chunk.choices[0].delta.content
             if delta:
-                yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
+                payload = json.dumps({"delta": delta}, ensure_ascii=False)
+                yield f"data: {payload}\n\n"
+
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")

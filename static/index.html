@@ -21,10 +21,33 @@
   </div>
 
   <script>
-    const accessCode = sessionStorage.getItem('accessCode') || prompt('请输入访问密码') || '';
-    sessionStorage.setItem('accessCode', accessCode);
     const log = document.getElementById('log');
     const q = document.getElementById('q');
+
+    function readCode() {
+      try {
+        return sessionStorage.getItem('accessCode') || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function saveCode(code) {
+      try {
+        sessionStorage.setItem('accessCode', code);
+      } catch (e) {}
+    }
+
+    function askCode() {
+      let code = readCode();
+      if (!code) {
+        code = (prompt('请输入访问密码') || '').trim();
+        if (code) saveCode(code);
+      }
+      return code;
+    }
+
+    let accessCode = askCode();
 
     q.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') send();
@@ -33,14 +56,55 @@
     async function send() {
       const text = q.value.trim();
       if (!text) return;
-      q.value = '';
-      log.textContent += `\n你：${text}\nAI：`;
 
-      const resp = await fetch('/chat/stream', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json','X-Access-Code': accessCode},
-        body: JSON.stringify({message: text, session_id: 'default'})
-      });
+      if (!accessCode) {
+        accessCode = askCode();
+        if (!accessCode) {
+          log.textContent += '\n[未输入密码]\n';
+          return;
+        }
+      }
+
+      q.value = '';
+      await streamChat(text);
+    }
+
+    async function streamChat(text, retried = false) {
+      if (retried) {
+        log.textContent += '\nAI：';
+      } else {
+        log.textContent += `\n你：${text}\nAI：`;
+      }
+
+      let resp;
+      try {
+        resp = await fetch('/chat/stream', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Access-Code': accessCode
+          },
+          body: JSON.stringify({message: text, session_id: 'default'})
+        });
+      } catch (e) {
+        log.textContent += `\n[网络错误] ${e}\n`;
+        return;
+      }
+
+      if (resp.status === 401 && !retried) {
+        accessCode = '';
+        saveCode('');
+        log.textContent += '\n[密码错误，请重新输入]\n';
+        accessCode = askCode();
+        if (accessCode) return streamChat(text, true);
+        return;
+      }
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        log.textContent += `\n[请求失败 ${resp.status}] ${err}\n`;
+        return;
+      }
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
