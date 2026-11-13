@@ -3,80 +3,814 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Chat</title>
+  <title>NEURAL LINK // AI CHAT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
-    #log { border: 1px solid #ddd; border-radius: 8px; padding: 16px; min-height: 200px; margin-bottom: 12px; white-space: pre-wrap; line-height: 1.7; }
-    .row { display: flex; gap: 8px; }
-    input { flex: 1; padding: 10px; font-size: 16px; }
-    button { padding: 10px 18px; font-size: 16px; cursor: pointer; }
+    :root {
+      --cyan: #5ef2ff;
+      --magenta: #ff5edb;
+      --violet: #8b5cff;
+      --bg: #04050c;
+      --text: #e8f6ff;
+      --muted: rgba(232, 246, 255, .52);
+      --line: rgba(94, 242, 255, .2);
+      --panel: rgba(10, 14, 30, .78);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ---------- background ---------- */
+    .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+
+    .bg::before {
+      content: "";
+      position: absolute;
+      inset: -20%;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(94, 242, 255, .18), transparent 38%),
+        radial-gradient(circle at 82% 28%, rgba(255, 94, 219, .16), transparent 42%),
+        radial-gradient(circle at 50% 92%, rgba(139, 92, 255, .2), transparent 46%);
+      filter: blur(40px);
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+
+    .grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(94, 242, 255, .07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(94, 242, 255, .07) 1px, transparent 1px);
+      background-size: 46px 46px;
+      transform: perspective(620px) rotateX(56deg) scale(1.65);
+      transform-origin: center 72%;
+      mask-image: radial-gradient(circle at 50% 42%, #000, transparent 74%);
+      -webkit-mask-image: radial-gradient(circle at 50% 42%, #000, transparent 74%);
+      opacity: .55;
+    }
+
+    .scanlines {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .035) 0 1px, transparent 1px 4px);
+      opacity: .45;
+      pointer-events: none;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: .45;
+      animation: float 13s ease-in-out infinite;
+    }
+
+    .orb-1 { width: 340px; height: 340px; background: #00e5ff; top: -120px; left: -100px; }
+    .orb-2 { width: 420px; height: 420px; background: #ff3ec8; bottom: -160px; right: -140px; animation-delay: -5s; }
+
+    #particles { position: absolute; inset: 0; overflow: hidden; }
+
+    .particle {
+      position: absolute;
+      width: 2px; height: 2px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      opacity: 0;
+      animation: rise linear infinite;
+    }
+
+    /* ---------- layout ---------- */
+    .shell {
+      width: min(1040px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+      position: relative;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 14px; }
+
+    .logo {
+      width: 52px; height: 52px;
+      border-radius: 16px;
+      background: conic-gradient(from 180deg, var(--cyan), var(--violet), var(--magenta), var(--cyan));
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 26px rgba(94, 242, 255, .45);
+      position: relative;
+    }
+
+    .logo::after {
+      content: "N";
+      font-family: "Orbitron", sans-serif;
+      font-weight: 900;
+      font-size: 22px;
+      color: #04050c;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Orbitron", "Noto Sans SC", sans-serif;
+      font-size: 20px;
+      letter-spacing: .18em;
+      background: linear-gradient(90deg, #fff, var(--cyan) 45%, var(--magenta));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .sub {
+      margin: 4px 0 0;
+      font-size: 10px;
+      letter-spacing: .32em;
+      color: var(--muted);
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(94, 242, 255, .25);
+      border-radius: 999px;
+      background: rgba(94, 242, 255, .05);
+      color: var(--cyan);
+      font-size: 10px;
+      letter-spacing: .18em;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan);
+      animation: pulse 1.6s infinite;
+    }
+
+    /* ---------- chat card ---------- */
+    .chat-card {
+      position: relative;
+      border-radius: 26px;
+      border: 1px solid var(--line);
+      background: linear-gradient(160deg, rgba(14, 19, 40, .92), rgba(7, 9, 20, .86));
+      backdrop-filter: blur(18px);
+      box-shadow:
+        0 30px 90px rgba(0, 0, 0, .6),
+        0 0 80px rgba(94, 242, 255, .08),
+        inset 0 0 60px rgba(139, 92, 255, .05);
+      overflow: hidden;
+    }
+
+    .corner {
+      position: absolute;
+      width: 16px; height: 16px;
+      border-color: rgba(94, 242, 255, .55);
+      border-style: solid;
+      pointer-events: none;
+    }
+    .tl { top: 10px; left: 10px; border-width: 1px 0 0 1px; }
+    .tr { top: 10px; right: 10px; border-width: 1px 1px 0 0; }
+    .bl { bottom: 10px; left: 10px; border-width: 0 0 1px 1px; }
+    .br { bottom: 10px; right: 10px; border-width: 0 1px 1px 0; }
+
+    .chat-head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 22px;
+      border-bottom: 1px solid rgba(94, 242, 255, .12);
+      background: linear-gradient(90deg, rgba(94, 242, 255, .06), transparent 62%);
+    }
+
+    .ai-avatar {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #fff, var(--cyan) 32%, var(--violet) 72%);
+      box-shadow: 0 0 22px rgba(94, 242, 255, .45);
+      position: relative;
+      flex: 0 0 46px;
+    }
+
+    .ai-avatar::after {
+      content: "";
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 1px dashed rgba(94, 242, 255, .5);
+      animation: spin 9s linear infinite;
+    }
+
+    .chat-head h2 {
+      margin: 0;
+      font-family: "Orbitron", sans-serif;
+      font-size: 14px;
+      letter-spacing: .14em;
+    }
+
+    .chat-head p {
+      margin: 3px 0 0;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .lock-btn {
+      margin-left: auto;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 94, 219, .3);
+      background: rgba(255, 94, 219, .06);
+      color: var(--magenta);
+      font-family: "Orbitron", sans-serif;
+      font-size: 10px;
+      letter-spacing: .14em;
+      cursor: pointer;
+      transition: .2s;
+    }
+
+    .lock-btn:hover { background: rgba(255, 94, 219, .14); box-shadow: 0 0 18px rgba(255, 94, 219, .18); }
+
+    /* ---------- messages ---------- */
+    .chat-log {
+      height: min(56vh, 560px);
+      overflow-y: auto;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+
+    .chat-log::-webkit-scrollbar { width: 6px; }
+    .chat-log::-webkit-scrollbar-track { background: transparent; }
+    .chat-log::-webkit-scrollbar-thumb {
+      background: linear-gradient(var(--cyan), var(--violet));
+      border-radius: 99px;
+    }
+
+    .msg {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      animation: rise .25s ease both;
+    }
+
+    .msg.user { flex-direction: row-reverse; }
+
+    .msg .avatar {
+      width: 30px; height: 30px;
+      flex: 0 0 30px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-family: "Orbitron", sans-serif;
+      font-size: 9px;
+      letter-spacing: .05em;
+    }
+
+    .msg.ai .avatar {
+      background: rgba(94, 242, 255, .1);
+      border: 1px solid rgba(94, 242, 255, .4);
+      color: var(--cyan);
+      box-shadow: 0 0 14px rgba(94, 242, 255, .18);
+    }
+
+    .msg.user .avatar {
+      background: rgba(255, 94, 219, .1);
+      border: 1px solid rgba(255, 94, 219, .4);
+      color: var(--magenta);
+    }
+
+    .bubble {
+      max-width: 78%;
+      padding: 12px 15px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.75;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .msg.ai .bubble {
+      background: rgba(94, 242, 255, .055);
+      border: 1px solid rgba(94, 242, 255, .16);
+      border-top-left-radius: 4px;
+      color: #dff8ff;
+    }
+
+    .msg.user .bubble {
+      background: linear-gradient(135deg, rgba(255, 94, 219, .16), rgba(139, 92, 255, .14));
+      border: 1px solid rgba(255, 94, 219, .26);
+      border-top-right-radius: 4px;
+    }
+
+    .bubble h1, .bubble h2, .bubble h3 {
+      margin: 10px 0 6px;
+      font-family: "Orbitron", "Noto Sans SC", sans-serif;
+      color: var(--cyan);
+      letter-spacing: .04em;
+    }
+
+    .bubble h1 { font-size: 16px; }
+    .bubble h2 { font-size: 15px; }
+    .bubble h3 { font-size: 14px; }
+
+    .bubble code {
+      padding: 2px 5px;
+      border-radius: 5px;
+      background: rgba(0, 0, 0, .38);
+      color: var(--cyan);
+      font-size: 13px;
+    }
+
+    .bubble pre {
+      margin: 8px 0;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, .42);
+      border: 1px solid rgba(94, 242, 255, .14);
+      overflow-x: auto;
+    }
+
+    .bubble pre code { background: none; padding: 0; }
+
+    .bubble ul { margin: 6px 0; padding-left: 18px; }
+
+    .typing { display: inline-flex; gap: 4px; padding: 3px 0; }
+
+    .typing i {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      animation: blink 1.2s infinite;
+    }
+
+    .typing i:nth-child(2) { animation-delay: .18s; }
+    .typing i:nth-child(3) { animation-delay: .36s; }
+
+    /* ---------- composer ---------- */
+    .composer {
+      display: flex;
+      gap: 10px;
+      padding: 16px 22px 8px;
+      border-top: 1px solid rgba(94, 242, 255, .1);
+    }
+
+    .composer textarea {
+      flex: 1;
+      min-height: 48px;
+      max-height: 120px;
+      padding: 13px 15px;
+      border-radius: 14px;
+      border: 1px solid rgba(94, 242, 255, .2);
+      background: rgba(4, 6, 16, .72);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      transition: .22s;
+    }
+
+    .composer textarea::placeholder { color: rgba(232, 246, 255, .3); }
+
+    .composer textarea:focus {
+      border-color: rgba(94, 242, 255, .65);
+      box-shadow: 0 0 0 3px rgba(94, 242, 255, .07), 0 0 26px rgba(94, 242, 255, .12);
+    }
+
+    .composer button {
+      padding: 0 22px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--cyan), var(--violet) 55%, var(--magenta));
+      color: #04050c;
+      font-family: "Orbitron", sans-serif;
+      font-weight: 900;
+      font-size: 12px;
+      letter-spacing: .14em;
+      cursor: pointer;
+      transition: .22s;
+    }
+
+    .composer button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 0 28px rgba(94, 242, 255, .4);
+    }
+
+    .composer button:disabled { opacity: .45; cursor: not-allowed; }
+
+    .hint {
+      padding: 0 22px 16px;
+      font-size: 10px;
+      letter-spacing: .1em;
+      color: rgba(232, 246, 255, .3);
+    }
+
+    footer {
+      margin-top: 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: rgba(232, 246, 255, .27);
+      font-size: 10px;
+      letter-spacing: .14em;
+    }
+
+    /* ---------- access gate ---------- */
+    .gate {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(3, 5, 12, .74);
+      backdrop-filter: blur(16px);
+      transition: opacity .28s ease;
+    }
+
+    .gate.hidden { opacity: 0; pointer-events: none; }
+
+    .gate-card {
+      position: relative;
+      width: min(380px, 100%);
+      padding: 30px 26px;
+      border-radius: 22px;
+      border: 1px solid rgba(94, 242, 255, .3);
+      background: linear-gradient(160deg, rgba(14, 19, 40, .97), rgba(7, 9, 20, .97));
+      box-shadow: 0 0 70px rgba(94, 242, 255, .16);
+      text-align: center;
+    }
+
+    .gate-card::before {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(94, 242, 255, .07);
+      border-radius: 16px;
+      pointer-events: none;
+    }
+
+    .gate-icon {
+      width: 56px; height: 56px;
+      margin: 0 auto 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(94, 242, 255, .5);
+      display: grid;
+      place-items: center;
+      color: var(--cyan);
+      font-size: 22px;
+      box-shadow: inset 0 0 24px rgba(94, 242, 255, .22);
+    }
+
+    .gate h2 {
+      margin: 0 0 8px;
+      font-family: "Orbitron", sans-serif;
+      font-size: 18px;
+      letter-spacing: .18em;
+      color: #fff;
+    }
+
+    .gate p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .gate input {
+      width: 100%;
+      padding: 13px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(94, 242, 255, .25);
+      background: rgba(4, 6, 16, .82);
+      color: var(--text);
+      font-size: 14px;
+      text-align: center;
+      letter-spacing: .18em;
+      outline: none;
+      transition: .22s;
+    }
+
+    .gate input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 22px rgba(94, 242, 255, .16);
+    }
+
+    .gate button {
+      width: 100%;
+      margin-top: 12px;
+      padding: 13px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--cyan), var(--violet) 60%, var(--magenta));
+      color: #04050c;
+      font-family: "Orbitron", sans-serif;
+      font-weight: 900;
+      font-size: 12px;
+      letter-spacing: .16em;
+      cursor: pointer;
+      transition: .22s;
+    }
+
+    .gate button:hover { box-shadow: 0 0 28px rgba(94, 242, 255, .35); }
+
+    .gate-error {
+      min-height: 18px;
+      margin: 10px 0 0;
+      color: #ff6b9d;
+      font-size: 12px;
+    }
+
+    /* ---------- animations ---------- */
+    @keyframes drift {
+      0% { transform: translate3d(-2%, -1%, 0) scale(1); }
+      100% { transform: translate3d(2%, 2%, 0) scale(1.06); }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-18px); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .45; transform: scale(.8); }
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: .2; transform: translateY(0); }
+      40% { opacity: 1; transform: translateY(-2px); }
+    }
+
+    @media (max-width: 640px) {
+      .shell { padding-top: 16px; }
+      .topbar { align-items: flex-start; }
+      .status { display: none; }
+      h1 { font-size: 17px; }
+      .chat-head { padding: 14px 16px; }
+      .chat-log { height: 54vh; padding: 16px; }
+      .bubble { max-width: 84%; }
+      .composer { padding: 12px 16px 6px; }
+      .hint { padding: 0 16px 14px; }
+      footer { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
-  <h1>AI Chat</h1>
-  <div id="log"></div>
-  <div class="row">
-    <input id="q" placeholder="输入问题，回车发送" />
-    <button onclick="send()">发送</button>
+  <div class="bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="grid"></div>
+    <div class="scanlines"></div>
+    <div id="particles"></div>
+  </div>
+
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <h1>NEURAL LINK</h1>
+          <p class="sub">AI CHAT // ニューラル・リンク</p>
+        </div>
+      </div>
+      <div class="status"><span class="dot"></span> SYSTEM ONLINE</div>
+    </header>
+
+    <section class="chat-card">
+      <span class="corner tl"></span>
+      <span class="corner tr"></span>
+      <span class="corner bl"></span>
+      <span class="corner br"></span>
+
+      <div class="chat-head">
+        <div class="ai-avatar"></div>
+        <div>
+          <h2>ARIA-01</h2>
+          <p>DeepSeek Neural Interface</p>
+        </div>
+        <button class="lock-btn" id="lockBtn">LOCK</button>
+      </div>
+
+      <div class="chat-log" id="log"></div>
+
+      <div class="composer">
+        <textarea id="q" rows="1" placeholder="输入问题，Enter 发送，Shift + Enter 换行"></textarea>
+        <button id="sendBtn">SEND</button>
+      </div>
+      <div class="hint">SECURE CHANNEL · ACCESS CODE REQUIRED · RATE LIMITED</div>
+    </section>
+
+    <footer>
+      <span>POWERED BY DEEPSEEK // RENDER</span>
+      <span>LATENCY: ~42MS · ENCRYPTED</span>
+    </footer>
+  </main>
+
+  <!-- access gate -->
+  <div class="gate" id="gate">
+    <div class="gate-card">
+      <div class="gate-icon">⌁</div>
+      <h2>ACCESS GATE</h2>
+      <p>请输入访问密码，进入神经链路</p>
+      <input id="gateInput" type="password" placeholder="••••••••" autocomplete="off" />
+      <button id="gateBtn">UNLOCK</button>
+      <p class="gate-error" id="gateError"></p>
+    </div>
   </div>
 
   <script>
-    const log = document.getElementById('log');
-    const q = document.getElementById('q');
+    const logEl = document.getElementById('log');
+    const inputEl = document.getElementById('q');
+    const sendBtn = document.getElementById('sendBtn');
+    const gate = document.getElementById('gate');
+    const gateInput = document.getElementById('gateInput');
+    const gateBtn = document.getElementById('gateBtn');
+    const gateError = document.getElementById('gateError');
+    const lockBtn = document.getElementById('lockBtn');
 
+    let accessCode = '';
+    let busy = false;
+    let gateOpen = true;
+
+    /* ---------- storage ---------- */
     function readCode() {
-      try {
-        return sessionStorage.getItem('accessCode') || '';
-      } catch (e) {
-        return '';
-      }
+      try { return sessionStorage.getItem('accessCode') || ''; }
+      catch (e) { return ''; }
     }
 
     function saveCode(code) {
-      try {
-        sessionStorage.setItem('accessCode', code);
-      } catch (e) {}
+      try { sessionStorage.setItem('accessCode', code); }
+      catch (e) {}
     }
 
-    function askCode() {
-      let code = readCode();
+    /* ---------- gate ---------- */
+    function openGate(message = '') {
+      gateOpen = true;
+      gate.classList.remove('hidden');
+      gateError.textContent = message;
+      gateInput.value = '';
+      inputEl.disabled = true;
+      sendBtn.disabled = true;
+      setTimeout(() => gateInput.focus(), 60);
+    }
+
+    function closeGate() {
+      gateOpen = false;
+      gate.classList.add('hidden');
+      inputEl.disabled = false;
+      sendBtn.disabled = false;
+      inputEl.focus();
+    }
+
+    function unlock() {
+      const code = gateInput.value.trim();
       if (!code) {
-        code = (prompt('请输入访问密码') || '').trim();
-        if (code) saveCode(code);
+        gateError.textContent = '密码不能为空';
+        return;
       }
-      return code;
+      accessCode = code;
+      saveCode(code);
+      closeGate();
     }
 
-    let accessCode = askCode();
-
-    q.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') send();
+    gateBtn.addEventListener('click', unlock);
+    gateInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') unlock();
     });
 
-    async function send() {
-      const text = q.value.trim();
-      if (!text) return;
+    lockBtn.addEventListener('click', () => {
+      accessCode = '';
+      saveCode('');
+      openGate('链路已锁定，请输入密码');
+    });
 
-      if (!accessCode) {
-        accessCode = askCode();
-        if (!accessCode) {
-          log.textContent += '\n[未输入密码]\n';
-          return;
-        }
-      }
-
-      q.value = '';
-      await streamChat(text);
+    /* ---------- markdown ---------- */
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
     }
 
-    async function streamChat(text, retried = false) {
-      if (retried) {
-        log.textContent += '\nAI：';
-      } else {
-        log.textContent += `\n你：${text}\nAI：`;
+    function renderMarkdown(src) {
+      let s = escapeHtml(src);
+      const blocks = [];
+
+      s = s.replace(/```(\w*)\n([\s\S]*?)```/g, (m, lang, code) => {
+        blocks.push(`<pre><code>${code}</code></pre>`);
+        return `\n@@BLOCK${blocks.length - 1}@@\n`;
+      });
+
+      s = s.replace(/^### (.*)$/gm, '<h3>$1</h3>');
+      s = s.replace(/^## (.*)$/gm, '<h2>$1</h2>');
+      s = s.replace(/^# (.*)$/gm, '<h1>$1</h1>');
+      s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+      s = s.replace(/(?:^|\n)((?:[-*] .*(?:\n|$))+)/g, (m, block) => {
+        const items = block.trim().split('\n')
+          .map((line) => `<li>${line.replace(/^[-*] /, '')}</li>`)
+          .join('');
+        return `\n<ul>${items}</ul>\n`;
+      });
+
+      s = s.replace(/\n/g, '<br>');
+      s = s.replace(/@@BLOCK(\d+)@@/g, (m, i) => blocks[Number(i)]);
+      return s;
+    }
+
+    /* ---------- messages ---------- */
+    function scrollBottom() {
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function appendMessage(role, text = '', raw = false) {
+      const wrap = document.createElement('div');
+      wrap.className = `msg ${role}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = role === 'user' ? 'YOU' : 'AI';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+
+      if (text) {
+        bubble.innerHTML = raw
+          ? escapeHtml(text).replace(/\n/g, '<br>')
+          : renderMarkdown(text);
       }
 
+      wrap.append(avatar, bubble);
+      logEl.appendChild(wrap);
+      scrollBottom();
+      return bubble;
+    }
+
+    function setBusy(value) {
+      busy = value;
+      inputEl.disabled = value || gateOpen;
+      sendBtn.disabled = value || gateOpen;
+    }
+
+    /* ---------- send ---------- */
+    async function send() {
+      const text = inputEl.value.trim();
+      if (!text || busy) return;
+
+      if (!accessCode) {
+        openGate('请先输入访问密码');
+        return;
+      }
+
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+
+      appendMessage('user', text, true);
+      const bubble = appendMessage('ai');
+      bubble.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
+      setBusy(true);
+
+      try {
+        await streamChat(text, bubble);
+      } finally {
+        setBusy(false);
+        scrollBottom();
+      }
+    }
+
+    async function streamChat(text, bubble) {
       let resp;
+
       try {
         resp = await fetch('/chat/stream', {
           method: 'POST',
@@ -84,49 +818,93 @@
             'Content-Type': 'application/json',
             'X-Access-Code': accessCode
           },
-          body: JSON.stringify({message: text, session_id: 'default'})
+          body: JSON.stringify({ message: text, session_id: 'default' })
         });
       } catch (e) {
-        log.textContent += `\n[网络错误] ${e}\n`;
+        bubble.textContent = `网络错误：${e}`;
         return;
       }
 
-      if (resp.status === 401 && !retried) {
+      if (resp.status === 401) {
         accessCode = '';
         saveCode('');
-        log.textContent += '\n[密码错误，请重新输入]\n';
-        accessCode = askCode();
-        if (accessCode) return streamChat(text, true);
+        bubble.textContent = 'ACCESS DENIED // 密码错误';
+        openGate('密码错误，请重新输入');
         return;
       }
 
       if (!resp.ok) {
         const err = await resp.text();
-        log.textContent += `\n[请求失败 ${resp.status}] ${err}\n`;
+        bubble.textContent = `请求失败 ${resp.status}：${err}`;
         return;
       }
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buf = '';
+      let raw = '';
 
       while (true) {
-        const {done, value} = await reader.read();
+        const { done, value } = await reader.read();
         if (done) break;
-        buf += decoder.decode(value, {stream: true});
+
+        buf += decoder.decode(value, { stream: true });
         const parts = buf.split('\n\n');
         buf = parts.pop();
+
         for (const part of parts) {
           if (!part.startsWith('data: ')) continue;
           const data = part.slice(6);
           if (data === '[DONE]') continue;
+
           try {
             const obj = JSON.parse(data);
-            log.textContent += obj.delta;
+            raw += obj.delta || '';
+            bubble.innerHTML = renderMarkdown(raw);
+            scrollBottom();
           } catch (e) {}
         }
       }
-      log.textContent += '\n';
+
+      if (!raw) {
+        bubble.textContent = '（无回复）';
+      }
+    }
+
+    /* ---------- events ---------- */
+    sendBtn.addEventListener('click', send);
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+    });
+
+    /* ---------- particles ---------- */
+    const particles = document.getElementById('particles');
+    for (let i = 0; i < 28; i++) {
+      const p = document.createElement('span');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.top = (60 + Math.random() * 45) + '%';
+      p.style.animationDuration = (7 + Math.random() * 9) + 's';
+      p.style.animationDelay = (Math.random() * 9) + 's';
+      particles.appendChild(p);
+    }
+
+    /* ---------- boot ---------- */
+    const saved = readCode();
+    if (saved) {
+      accessCode = saved;
+      closeGate();
+    } else {
+      openGate();
     }
   </script>
 </body>
